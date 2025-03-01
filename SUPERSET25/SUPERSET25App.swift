@@ -484,6 +484,24 @@ class SetGameViewModel: ObservableObject {
         }
     }
     
+    // Nieuwe functie voor als de speler geen SuperSet ziet
+    func geenSuperSetGevonden() {
+        if case .superSetSelectie(let geldigeSet, let spelerMetSet) = spelStatus {
+            // Geef de normale punten voor de gevonden SET
+            model.updateScore(voor: spelerMetSet, met: 3)
+            model.verwijderSet(geldigeSet)
+            
+            // Toon feedback en beëindig de SuperSet poging
+            toonSuperSetResultaat = true
+            isSuccesvolSuperSet = false
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                self.toonSuperSetResultaat = false
+                self.beeindigSuperSetPoging()
+            }
+        }
+    }
+    
     private func controleerSuperSet(origineleSet: [SetCard], spelerMetSet: Int) {
         if model.isSet(superSetKaarten) {
             isSuccesvolSuperSet = true
@@ -1956,9 +1974,39 @@ struct SpelScherm: View {
                 superSetResultaatOverlay
             }
             
+            // Toon de "Ik zie geen SuperSet" knop wanneer de speler in SuperSet selectie modus is
+            if viewModel.inSuperSetMode {
+                geenSuperSetKnop
+            }
+            
             if viewModel.spelFase == .eindSpel {
                 EindSpelOverlay(viewModel: viewModel)
             }
+        }
+    }
+    
+    // Nieuwe knop voor "Ik zie geen SuperSet"
+    private var geenSuperSetKnop: some View {
+        VStack {
+            Spacer()
+            Button(action: {
+                viewModel.geenSuperSetGevonden()
+            }) {
+                Text("I SEE NO SUPERSET")
+                    .font(.headline)
+                    .padding()
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.red.opacity(0.7), Color.orange.opacity(0.7)]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                    .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
+            }
+            .padding(.bottom, 20)
         }
     }
     
@@ -2080,6 +2128,14 @@ struct SpelScherm: View {
                     Text("🌟 SUPER SET! 🌟")
                         .font(.system(size: 60))
                     Text("🌟🌟 GREAT - WELL DONE! +10 points! 🌟🌟🌟")
+                        .font(.title)
+                        .foregroundColor(.white)
+                } else if case .superSetSelectie = viewModel.spelStatus {
+                    // Bericht voor als de speler geen SuperSet ziet
+                    Text("👍 NO PROBLEM!")
+                        .font(.system(size: 60))
+                        .foregroundColor(.yellow)
+                    Text("You keep your 3 points for the SET!")
                         .font(.title)
                         .foregroundColor(.white)
                 } else {
