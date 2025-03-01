@@ -382,13 +382,13 @@ class SetGameViewModel: ObservableObject {
     func selecteerKaart(_ kaart: SetCard) {
         // In multiplayer mode, controleer of er een actieve speler is geselecteerd
         if spelModus != .oefenen && actieveSpeler == nil {
-            // Toon de melding dat de speler eerst een avatar moet selecteren
-            toonKiesAvatarMelding = true
+            print("DEBUG: Toon avatar melding - spelModus: \(spelModus), actieveSpeler: \(String(describing: actieveSpeler))")
             
-            // Verberg de melding na 2 seconden
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                self.toonKiesAvatarMelding = false
-            }
+            // Toon de avatar melding
+            toonAvatarMelding()
+            
+            // Extra debug print om te bevestigen dat de functie wordt aangeroepen
+            print("DEBUG: toonAvatarMelding() is aangeroepen")
             return
         }
         
@@ -772,6 +772,22 @@ class SetGameViewModel: ObservableObject {
         }
     }
 
+    // Functie om geluiden af te spelen
+    func speelGeluid(naam: String, type: String) {
+        guard let url = Bundle.main.url(forResource: naam, withExtension: type) else {
+            print("Geluid niet gevonden: \(naam).\(type)")
+            return
+        }
+        
+        do {
+            let speler = try AVAudioPlayer(contentsOf: url)
+            speler.prepareToPlay()
+            speler.play()
+        } catch {
+            print("Fout bij afspelen geluid: \(error)")
+        }
+    }
+
     // Voeg een dispose functie toe
     func dispose() {
         cleanupTimers()
@@ -820,6 +836,35 @@ class SetGameViewModel: ObservableObject {
                 winnaar: actieveSpeler
             )
             spelFase = .eindSpel
+        }
+    }
+
+    // Debug functie om de avatar melding direct te tonen
+    func toonAvatarMelding() {
+        print("DEBUG: toonAvatarMelding functie start")
+        
+        // Reset de melding eerst (voor het geval deze al wordt getoond)
+        toonKiesAvatarMelding = false
+        
+        // Forceer een UI update door een kleine vertraging toe te voegen
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Toon de melding
+            print("DEBUG: Toon melding na vertraging")
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                self.toonKiesAvatarMelding = true
+                print("DEBUG: toonKiesAvatarMelding gezet op true")
+            }
+            
+            // Speel een systeemgeluid af
+            AudioServicesPlaySystemSound(1521) // Foutmelding geluid
+            
+            // Verberg de melding na 3 seconden
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                withAnimation {
+                    self.toonKiesAvatarMelding = false
+                    print("DEBUG: toonKiesAvatarMelding gezet op false na 3 seconden")
+                }
+            }
         }
     }
 }
@@ -2028,6 +2073,17 @@ struct SpelScherm: View {
                     .background(Color.blue.opacity(0.3))
                     .foregroundColor(.white)
                     .cornerRadius(10)
+                    
+                    // Debug knop voor het testen van de avatar melding
+                    #if DEBUG
+                    Button("Test Avatar") {
+                        viewModel.toonAvatarMelding()
+                    }
+                    .padding()
+                    .background(Color.purple.opacity(0.5))
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                    #endif
                 }
                 .padding(.horizontal)
                 .padding(.top)
@@ -2076,6 +2132,8 @@ struct SpelScherm: View {
             // Toon de melding wanneer een speler op een kaart klikt zonder eerst een avatar te selecteren
             if viewModel.toonKiesAvatarMelding {
                 kiesAvatarMeldingOverlay
+                    .zIndex(100) // Zorg ervoor dat de overlay bovenop alles wordt getoond
+                    .transition(.scale.combined(with: .opacity))
             }
             
             if viewModel.spelFase == .eindSpel {
@@ -2087,55 +2145,109 @@ struct SpelScherm: View {
     // Nieuwe overlay voor de "Kies eerst je avatar" melding
     private var kiesAvatarMeldingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.7)
+            // Volledig scherm overlay met tap gesture om te sluiten
+            Color.black.opacity(0.85)
                 .ignoresSafeArea()
-            VStack {
+                .onTapGesture {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        viewModel.toonKiesAvatarMelding = false
+                    }
+                }
+            
+            // Centrale boodschap met animatie
+            VStack(spacing: 20) {
+                // Waarschuwing
                 Text("⚠️ ATTENTION! ⚠️")
-                    .font(.system(size: 40))
-                    .bold()
+                    .font(.system(size: 60, weight: .bold))
                     .foregroundColor(.yellow)
-                    .shadow(color: .orange, radius: 2)
+                    .shadow(color: .orange, radius: 8, x: 0, y: 0)
+                    .padding(.bottom, 10)
+                    .modifier(PulseEffect())
                 
+                // Hoofdboodschap
                 Text("First click your avatar!")
-                    .font(.title)
+                    .font(.system(size: 36, weight: .bold))
                     .foregroundColor(.white)
-                    .padding()
+                    .padding(.vertical, 15)
+                    .padding(.horizontal, 25)
+                    .background(
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.red.opacity(0.8), Color.orange.opacity(0.8)]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    )
+                    .shadow(color: .red.opacity(0.5), radius: 10, x: 0, y: 0)
+                    .padding(.bottom, 30)
                 
-                // Animatie om te tonen welke avatars beschikbaar zijn
-                HStack(spacing: 30) {
+                // Avatars
+                HStack(spacing: 40) {
                     ForEach(viewModel.spelerPosities, id: \.self) { positie in
                         if let avatar = viewModel.spelerAvatars[positie], !viewModel.isSpelerGeblokkeerd(viewModel.spelerPosities.firstIndex(of: positie) ?? -1) {
                             VStack {
+                                // Avatar
                                 Text(avatar.rawValue)
-                                    .font(.system(size: 40))
-                                    .shadow(color: .white, radius: 5)
+                                    .font(.system(size: 60))
+                                    .shadow(color: .white, radius: 15)
                                 
+                                // Pijl
                                 Image(systemName: "arrow.up")
-                                    .font(.system(size: 30))
+                                    .font(.system(size: 36, weight: .bold))
                                     .foregroundColor(.yellow)
+                                    .shadow(color: .orange, radius: 5)
                                     .offset(y: -5)
-                                    .opacity(0.8)
-                                    .animation(Animation.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: viewModel.toonKiesAvatarMelding)
+                                    .modifier(PulseEffect())
                             }
-                            .padding()
+                            .padding(20)
                             .background(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .fill(Color.blue.opacity(0.3))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 15)
-                                            .stroke(Color.yellow, lineWidth: 2)
-                                    )
+                                ZStack {
+                                    // Achtergrond
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [Color.blue.opacity(0.7), Color.purple.opacity(0.7)]),
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                        )
+                                    
+                                    // Rand
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(Color.yellow, lineWidth: 4)
+                                        .blur(radius: 2)
+                                }
                             )
+                            .modifier(SlowPulseEffect())
                         }
                     }
                 }
-                .padding(.top)
+                .padding(.top, 20)
             }
-            .padding()
-            .background(Color.black.opacity(0.8))
-            .cornerRadius(20)
+            .padding(40)
+            .background(
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(Color.black.opacity(0.95))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.yellow, .orange, .red, .orange, .yellow]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 6
+                            )
+                    )
+                    .shadow(color: .orange.opacity(0.5), radius: 20, x: 0, y: 0)
+            )
+            .scaleEffect(viewModel.toonKiesAvatarMelding ? 1.0 : 0.5)
+            .opacity(viewModel.toonKiesAvatarMelding ? 1.0 : 0.0)
         }
         .transition(.scale.combined(with: .opacity))
+        .zIndex(100)
     }
     
     // Nieuwe knop voor "Ik zie geen SuperSet"
@@ -2741,5 +2853,33 @@ struct GlowingButtonStyle: ButtonStyle {
             .shadow(color: color.opacity(0.5), radius: configuration.isPressed ? 5 : 15)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+struct PulseEffect: ViewModifier {
+    @State private var pulse = false
+    
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(pulse ? 1.1 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pulse)
+            .onAppear {
+                withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) {
+                    pulse.toggle()
+                }
+            }
+    }
+}
+
+struct SlowPulseEffect: ViewModifier {
+    @State private var pulse = false
+    
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(pulse ? 1.05 : 1.0)
+            .animation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulse)
+            .onAppear {
+                pulse = true
+            }
     }
 }
