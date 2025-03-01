@@ -1,7 +1,7 @@
 # SUPERSET25
 SUPERSET
 
-
+<code moet nog worden aangepast>
 R. Over de randvoorwaarden van het programmeren 
 
 r.1 we programmeren op een macbookpro 
@@ -60,16 +60,6 @@ Opbouw van het scherm
 - met daarom heen in de hoeken de vier spelersknoppen met score en naam 
 - boven in het midden staat het totaal en het resterende aantal kaarten. 
 - onderin staan knoppen om het spel te bedienen; stop spel, nieuw spel 
-- Op het scherm loopt een timer 
-- na 45 seconden wisselt 1 willekeurige (random) kaart;
-- de kaart die zal worden verwisseld, krijgt een blauwe rand en vervaagt; 
-- binnen drie seconden is de kaart helemaal verdwenen, 
-- en plotseling verschijnt er, met een leuke animatie, een nieuwe kaart 
-- de kaart die verdwenen is, wordt terug aan het deck toegevoegd
-- en die kaart kan weer opnieuw uit het deck worden getrokken 
-- er is een pauzeknop naast de timer; 
-- als die wordt ingedrukt stopt de timer met terugtellen 
-- als de knop nogmaals wordt gedrukt, loopt de timer weer verder terug 
 
 
 Spelverloop 
@@ -101,8 +91,6 @@ ONGELDIGE SET
 	
 
 
-
-
 Bijzondere schermen
 
 - splashscherm bij een geldige set: 
@@ -122,39 +110,6 @@ Einde van het spel
 - het winst splashscherm verschijnt
 - of als de knop 'einde spel' wordt ingeklikt. 
 - vraag na het indrukken van de knop 1x om bevestiging; "weet je het zeker ja / nee" 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 SUPERSET
@@ -199,20 +154,6 @@ Hier is een duidelijke beschrijving van de SuperSet functionaliteit in normale t
 Deze opzet zorgt voor een duidelijke, modulaire implementatie waarbij alle onderdelen netjes gescheiden zijn en de status goed bijgehouden wordt.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Eindspel Situaties:
 
 
@@ -234,7 +175,6 @@ Specifieke functionaliteit die nodig is:
 •  Een functie die checkt of het deck leeg is
 •  Een eindscherm met scores en resultaten
 •  Een systeem om de winnaar te bepalen (hoogste score)
-
 
  
 Vooraf 
