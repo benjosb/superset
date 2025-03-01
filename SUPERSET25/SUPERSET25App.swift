@@ -181,6 +181,7 @@ class SetGameViewModel: ObservableObject {
     @Published private(set) var aantalMogelijkeSets: Int = 0
     private var audioPlayer: AVAudioPlayer?
     var timerCancellable: AnyCancellable?  // Voeg deze property toe
+    @Published var toonKiesAvatarMelding = false
     
     struct EindSpelStats {
         let scores: [Int]
@@ -379,6 +380,18 @@ class SetGameViewModel: ObservableObject {
     }
 
     func selecteerKaart(_ kaart: SetCard) {
+        // In multiplayer mode, controleer of er een actieve speler is geselecteerd
+        if spelModus != .oefenen && actieveSpeler == nil {
+            // Toon de melding dat de speler eerst een avatar moet selecteren
+            toonKiesAvatarMelding = true
+            
+            // Verberg de melding na 2 seconden
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                self.toonKiesAvatarMelding = false
+            }
+            return
+        }
+        
         guard magKaartenSelecteren else { return }
         
         switch spelStatus {
@@ -2060,10 +2073,69 @@ struct SpelScherm: View {
                 geenSuperSetKnop
             }
             
+            // Toon de melding wanneer een speler op een kaart klikt zonder eerst een avatar te selecteren
+            if viewModel.toonKiesAvatarMelding {
+                kiesAvatarMeldingOverlay
+            }
+            
             if viewModel.spelFase == .eindSpel {
                 EindSpelOverlay(viewModel: viewModel)
             }
         }
+    }
+    
+    // Nieuwe overlay voor de "Kies eerst je avatar" melding
+    private var kiesAvatarMeldingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+            VStack {
+                Text("⚠️ ATTENTION! ⚠️")
+                    .font(.system(size: 40))
+                    .bold()
+                    .foregroundColor(.yellow)
+                    .shadow(color: .orange, radius: 2)
+                
+                Text("First click your avatar!")
+                    .font(.title)
+                    .foregroundColor(.white)
+                    .padding()
+                
+                // Animatie om te tonen welke avatars beschikbaar zijn
+                HStack(spacing: 30) {
+                    ForEach(viewModel.spelerPosities, id: \.self) { positie in
+                        if let avatar = viewModel.spelerAvatars[positie], !viewModel.isSpelerGeblokkeerd(viewModel.spelerPosities.firstIndex(of: positie) ?? -1) {
+                            VStack {
+                                Text(avatar.rawValue)
+                                    .font(.system(size: 40))
+                                    .shadow(color: .white, radius: 5)
+                                
+                                Image(systemName: "arrow.up")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.yellow)
+                                    .offset(y: -5)
+                                    .opacity(0.8)
+                                    .animation(Animation.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: viewModel.toonKiesAvatarMelding)
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(Color.blue.opacity(0.3))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 15)
+                                            .stroke(Color.yellow, lineWidth: 2)
+                                    )
+                            )
+                        }
+                    }
+                }
+                .padding(.top)
+            }
+            .padding()
+            .background(Color.black.opacity(0.8))
+            .cornerRadius(20)
+        }
+        .transition(.scale.combined(with: .opacity))
     }
     
     // Nieuwe knop voor "Ik zie geen SuperSet"
@@ -2364,7 +2436,7 @@ struct KaartView: View {
         case .ruit:
             vormMetVulling(RuitVorm())
         case .rechthoek:
-            vormMetVulling(Rectangle())
+            vormMetVulling(RoundedRectangle(cornerRadius: 4))
         case .ovaal:
             vormMetVulling(Capsule())
         }
