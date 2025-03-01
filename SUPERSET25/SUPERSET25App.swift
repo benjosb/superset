@@ -380,6 +380,8 @@ class SetGameViewModel: ObservableObject {
     }
 
     func selecteerKaart(_ kaart: SetCard) {
+        print("DEBUG: selecteerKaart functie aangeroepen voor kaart \(kaart.id)")
+        
         // In multiplayer mode, controleer of er een actieve speler is geselecteerd
         if spelModus != .oefenen && actieveSpeler == nil {
             print("DEBUG: Toon avatar melding - spelModus: \(spelModus), actieveSpeler: \(String(describing: actieveSpeler))")
@@ -392,7 +394,12 @@ class SetGameViewModel: ObservableObject {
             return
         }
         
-        guard magKaartenSelecteren else { return }
+        // Controleer of kaarten geselecteerd mogen worden, maar alleen voor de normale spellogica
+        // Niet voor de avatar melding check hierboven
+        guard magKaartenSelecteren else { 
+            print("DEBUG: Kaarten selecteren is niet toegestaan (magKaartenSelecteren = false)")
+            return 
+        }
         
         switch spelStatus {
         case .normaalSpel:
@@ -2004,9 +2011,11 @@ struct SpelScherm: View {
                         )
                         .aspectRatio(2/3, contentMode: .fit)
                         .onTapGesture {
+                            print("DEBUG: Kaart tap gedetecteerd voor kaart \(kaart.id)")
                             viewModel.selecteerKaart(kaart)
                         }
-                        .disabled(!viewModel.magKaartenSelecteren)
+                        // Verwijder de disabled modifier zodat kaarten altijd reageren op taps
+                        // De selecteerKaart functie bepaalt intern of de tap geldig is
                     }
                 }
                 .padding()
@@ -2455,7 +2464,7 @@ struct SpelerKnop: View {
                     .stroke(isActief ? Color.yellow : Color.clear, lineWidth: 3)
             )
         }
-        .disabled(isActief || isGeblokkeerd)
+        .disabled(isGeblokkeerd) // Alleen uitschakelen als de speler geblokkeerd is, niet als de speler actief is
     }
     
     private var achtergrondKleur: Color {
