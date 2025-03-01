@@ -962,18 +962,88 @@ struct VoorbeeldKaart: View {
     let vulling: SetCard.CardVulling
     
     var body: some View {
-        KaartView(
-            kaart: SetCard(
-                aantal: aantal,
-                kleur: kleur,
-                vorm: vorm,
-                vulling: vulling
-            ),
-            isGeselecteerd: false,
-            isVerlicht: false,
-            viewModel: SetGameViewModel()
-        )
-        .frame(width: 80, height: 120)
+        ZStack {
+            // Kaart achtergrond met subtiele gradient en schaduw
+            RoundedRectangle(cornerRadius: 10)
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.white, Color.white.opacity(0.9)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: Color.black.opacity(0.2), radius: 5, x: 2, y: 2)
+            
+            // Kaart rand met subtiele glans
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.white.opacity(0.7), Color.gray.opacity(0.3)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+            
+            // Kaart inhoud
+            VStack(spacing: 8) {
+                ForEach(0..<aantal, id: \.self) { _ in
+                    kaartVorm
+                        .padding(.horizontal, 10)
+                }
+            }
+            .padding(10)
+        }
+    }
+    
+    @ViewBuilder
+    private var kaartVorm: some View {
+        switch vorm {
+        case .ruit:
+            vormMetVulling(RuitVorm())
+        case .rechthoek:
+            vormMetVulling(RoundedRectangle(cornerRadius: 4))
+        case .ovaal:
+            vormMetVulling(Capsule())
+        }
+    }
+    
+    @ViewBuilder
+    private func vormMetVulling<T: Shape>(_ shape: T) -> some View {
+        switch vulling {
+        case .volledig:
+            shape
+                .fill(vormKleur)
+                .overlay(
+                    shape
+                        .stroke(vormKleur.opacity(0.7), lineWidth: 1.5)
+                )
+                .shadow(color: vormKleur.opacity(0.3), radius: 2, x: 1, y: 1)
+        case .leeg:
+            shape
+                .stroke(vormKleur, lineWidth: 2)
+                .shadow(color: vormKleur.opacity(0.2), radius: 1, x: 0, y: 0)
+        case .gestippeld:
+            shape
+                .stroke(vormKleur, lineWidth: 2)
+                .overlay(
+                    shape
+                        .fill(vormKleur)
+                        .opacity(0.3)
+                )
+                .shadow(color: vormKleur.opacity(0.2), radius: 1, x: 0, y: 0)
+        }
+    }
+    
+    private var vormKleur: Color {
+        switch kleur {
+        case .rood:
+            return Color(red: 0.9, green: 0.2, blue: 0.2)
+        case .groen:
+            return Color(red: 0.2, green: 0.8, blue: 0.4)
+        case .paars:
+            return Color(red: 0.6, green: 0.2, blue: 0.8)
+        }
     }
 }
 // MARK: - GameContentView
@@ -998,7 +1068,7 @@ struct GameContentView: View {
 // MARK: - Scherm
 struct StartScherm: View {
     @ObservedObject var viewModel: SetGameViewModel
-    @State private var toonSpeluitleg = false
+    @State private var toonSetUitleg = false
     @State private var toonSuperSetUitleg = false
     @State private var voorbeeldSetNummer = 1
     @State private var animationOffset = 0.0
@@ -1030,7 +1100,7 @@ struct StartScherm: View {
                             .offset(
                                 x: sin(animationOffset + Double(index) * 0.5) * 100,
                                 y: cos(animationOffset + Double(index) * 0.5) * 100
-                            )  // Verwijder extra )
+                            )
                             .blur(radius: 30)
                             .opacity(0.4)
                     }
@@ -1050,21 +1120,71 @@ struct StartScherm: View {
                 
                 // Moderne horizontale banen
                 VStack(spacing: 25) {
-                    ForEach(0..<3) { index in
-                        MenuButton(
-                            icon: menuIcons[index],
-                            title: menuTitles[index],
-                            subtitle: menuSubtitles[index],
-                            isHovered: hoverButton == index,
-                            gradientColors: buttonGradients[index],
-                            action: {
-                                handleMenuAction(index)
-                            }
-                        )
-                        .onHover { isHovered in
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                hoverButton = isHovered ? index : nil
-                            }
+                    // Learn SET knop
+                    MenuButton(
+                        icon: "questionmark.circle.fill",
+                        title: "Learn SET",
+                        subtitle: "Learn the basics of SET",
+                        isHovered: hoverButton == 0,
+                        gradientColors: [Color(red: 0.0, green: 0.8, blue: 0.4), Color(red: 0.0, green: 0.6, blue: 0.8)],
+                        action: {
+                            withAnimation { toonSetUitleg = true }
+                        }
+                    )
+                    .onHover { isHovered in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            hoverButton = isHovered ? 0 : nil
+                        }
+                    }
+                    
+                    // What is a SUPER-set knop
+                    MenuButton(
+                        icon: "star.circle.fill",
+                        title: "What is a SUPER-set",
+                        subtitle: "Learn about the special challenge",
+                        isHovered: hoverButton == 1,
+                        gradientColors: [Color(red: 0.0, green: 0.7, blue: 0.4), Color(red: 0.0, green: 0.5, blue: 0.7)],
+                        action: {
+                            withAnimation { toonSuperSetUitleg = true }
+                        }
+                    )
+                    .onHover { isHovered in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            hoverButton = isHovered ? 1 : nil
+                        }
+                    }
+                    
+                    // Practice Mode knop
+                    MenuButton(
+                        icon: "graduationcap.fill",
+                        title: "Practice Mode",
+                        subtitle: "Train your skills",
+                        isHovered: hoverButton == 2,
+                        gradientColors: [Color(red: 1.0, green: 0.5, blue: 0.0), Color(red: 1.0, green: 0.7, blue: 0.0)],
+                        action: {
+                            withAnimation { viewModel.startNieuwSpel(modus: .oefenen) }
+                        }
+                    )
+                    .onHover { isHovered in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            hoverButton = isHovered ? 2 : nil
+                        }
+                    }
+                    
+                    // Multiplayer knop
+                    MenuButton(
+                        icon: "figure.run.circle.fill",
+                        title: "Multiplayer",
+                        subtitle: "Play with friends",
+                        isHovered: hoverButton == 3,
+                        gradientColors: [Color(red: 0.0, green: 0.6, blue: 0.8), Color(red: 0.2, green: 0.4, blue: 1.0)],
+                        action: {
+                            withAnimation { viewModel.startNieuwSpel(modus: .vierSpelers) }
+                        }
+                    )
+                    .onHover { isHovered in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            hoverButton = isHovered ? 3 : nil
                         }
                     }
                 }
@@ -1076,18 +1196,22 @@ struct StartScherm: View {
                 Button(action: {
                     viewModel.beeindigHuidigSpel()
                 }) {
-                    Text("End Game 🏁")  // Verander de tekst van de knop
+                    Text("End Game 🏁")
                         .font(.headline)
                         .padding()
-                        .background(Color.red.opacity(0.7))  // Verander de kleur naar rood
+                        .background(Color.red.opacity(0.7))
                         .foregroundColor(.white)
                         .cornerRadius(10)
                 }
                 .padding(.bottom, 20)
             }
             
-            if toonSpeluitleg {
-                speluitlegOverlay
+            if toonSetUitleg {
+                setUitlegOverlay
+            }
+            
+            if toonSuperSetUitleg {
+                superSetUitlegOverlay
             }
         }
         .onAppear {
@@ -1098,140 +1222,268 @@ struct StartScherm: View {
         }
     }
     
-    private let menuIcons = ["questionmark.circle.fill", "graduationcap.fill", "figure.run.circle.fill"]
-    
-    private let menuTitles = [
-        "Learn SET",
-        "Practice Mode",
-        "Multiplayer"
-    ]
-    
-    private let menuSubtitles = [
-        "Learn the basics & SUPERset",
-        "Train your skills",
-        "Play with friends"
-    ]
-    
-    // Kleurrijke gradiënten voor elke knop
-    private let buttonGradients: [[Color]] = [
-        [Color(red: 1.0, green: 0.5, blue: 0.0), Color(red: 1.0, green: 0.7, blue: 0.0)],  // Oranje/Goud
-        [Color(red: 0.0, green: 0.8, blue: 0.4), Color(red: 0.0, green: 0.6, blue: 0.8)],  // Groen/Blauw
-        [Color(red: 0.8, green: 0.2, blue: 0.8), Color(red: 0.6, green: 0.0, blue: 1.0)]   // Paars/Violet
-    ]
-    
-    private func handleMenuAction(_ index: Int) {
-        switch index {
-        case 0:
-            withAnimation { toonSpeluitleg = true }
-        case 1:
-            withAnimation { viewModel.startNieuwSpel(modus: .oefenen) }
-        case 2:
-            withAnimation { viewModel.startNieuwSpel(modus: .vierSpelers) }
-        default:
-            break
-        }
-    }
-    
-    private var speluitlegOverlay: some View {
+    // SET uitleg overlay
+    private var setUitlegOverlay: some View {
         ZStack {
-            Color.black.opacity(0.8)
-                .ignoresSafeArea()
+            // Donkere achtergrond met subtiele gradient
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black.opacity(0.95), Color(red: 0.1, green: 0.05, blue: 0.2)]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 30) {
-                    Text("Learn SET & SUPERset")
-                        .font(.system(size: 40, weight: .bold))
+                    // Titel met glow effect
+                    Text("Learn SET")
+                        .font(.system(size: 42, weight: .bold))
                         .foregroundColor(.white)
-                        .padding(.top, 40)
+                        .shadow(color: .orange.opacity(0.8), radius: 8, x: 0, y: 0)
+                        .padding(.top, 30)
                     
-                    // SET uitleg
-                    VStack(spacing: 20) {
+                    // SET uitleg sectie
+                    VStack(spacing: 25) {
                         Text("What is a SET?")
-                            .font(.title)
+                            .font(.system(size: 30, weight: .bold))
                             .foregroundColor(.yellow)
+                            .shadow(color: .yellow.opacity(0.5), radius: 4, x: 0, y: 0)
                         
+                        // Uitleg tekst
                         Group {
                             switch voorbeeldSetNummer {
                             case 1:
-                                Text(LocalizationManager.text("set_type_1"))
-                                    .foregroundColor(.white)
+                                uitlegBox(tekst: LocalizationManager.text("set_type_1"), kleur: .blue)
                             case 2:
-                                Text(LocalizationManager.text("set_type_2"))
-                                    .foregroundColor(.white)
+                                uitlegBox(tekst: LocalizationManager.text("set_type_2"), kleur: .green)
                             case 3:
-                                Text(LocalizationManager.text("set_type_3"))
-                                    .foregroundColor(.white)
+                                uitlegBox(tekst: LocalizationManager.text("set_type_3"), kleur: .orange)
                             case 4:
-                                Text(LocalizationManager.text("set_type_4"))
-                                    .foregroundColor(.white)
+                                uitlegBox(tekst: LocalizationManager.text("set_type_4"), kleur: .red)
                             default:
                                 EmptyView()
                             }
                             
-                            HStack(spacing: 15) {
-                                ForEach(voorbeeldSet(), id: \.id) { kaart in
-                                    kaart
+                            // Voorbeeld kaarten
+                            VStack(spacing: 10) {
+                                Text("Example:")
+                                    .font(.headline)
+                                    .foregroundColor(.white.opacity(0.8))
+                                
+                                HStack(spacing: 15) {
+                                    ForEach(voorbeeldSet(), id: \.id) { kaart in
+                                        kaart
+                                            .frame(width: 90, height: 140)
+                                            .shadow(color: .black.opacity(0.3), radius: 3, x: 1, y: 1)
+                                    }
+                                }
+                                .padding(.vertical, 10)
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.white.opacity(0.05))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                        }
+                    }
+                    
+                    // Navigatie knoppen
+                    HStack(spacing: 20) {
+                        if voorbeeldSetNummer < 4 {
+                            Button(LocalizationManager.text("show_more")) {
+                                withAnimation {
+                                    voorbeeldSetNummer += 1
                                 }
                             }
-                            .padding(.vertical)
+                            .buttonStyle(GlowingButtonStyle(color: .blue))
                         }
                         
-                        // SUPERset uitleg
-                        if voorbeeldSetNummer == 4 {
-                            VStack(spacing: 20) {
-                                Text("What is a SUPERset?")
-                                    .font(.title)
-                                    .foregroundColor(.purple)
-                                    .padding(.top)
-                                
-                                Text("A SUPERset is a special challenge that appears after finding a normal SET!")
-                                    .foregroundColor(.white)
-                                
-                                Text("When you find a SET, you can choose to:")
-                                    .foregroundColor(.white)
-                                
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("• Keep your 3 points")
-                                    Text("• Try for a SUPERset worth 10 points!")
-                                    Text("• But be careful: if you fail, you get NO points!")
-                                }
-                                .foregroundColor(.white)
-                                .padding()
-                                
-                                Text("To make a SUPERset:")
-                                    .foregroundColor(.white)
-                                
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("1. Select one card from your SET")
-                                    Text("2. Find two new cards that make a SET")
-                                    Text("3. Success = 10 points! ⭐️")
-                                }
-                                .foregroundColor(.white)
-                                .padding()
-                            }
-                        }
-                    }
-                    
-                    if voorbeeldSetNummer < 4 {
-                        Button(LocalizationManager.text("show_more")) {
+                        Button(LocalizationManager.text("skip")) {
                             withAnimation {
-                                voorbeeldSetNummer += 1
+                                toonSetUitleg = false
+                                voorbeeldSetNummer = 1
                             }
                         }
-                        .buttonStyle(GlowingButtonStyle(color: .blue))
+                        .buttonStyle(GlowingButtonStyle(color: .green))
                     }
+                    .padding(.vertical, 20)
+                }
+                .padding(25)
+            }
+            .edgesIgnoringSafeArea(.bottom)
+        }
+    }
+    
+    // SUPER-set uitleg overlay
+    private var superSetUitlegOverlay: some View {
+        ZStack {
+            // Donkere achtergrond met subtiele gradient
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black.opacity(0.95), Color(red: 0.2, green: 0.05, blue: 0.3)]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 30) {
+                    // Titel met glow effect
+                    Text("What is a SUPER-set?")
+                        .font(.system(size: 42, weight: .bold))
+                        .foregroundColor(.white)
+                        .shadow(color: .purple.opacity(0.8), radius: 8, x: 0, y: 0)
+                        .padding(.top, 30)
                     
-                    Button(voorbeeldSetNummer == 4 ? LocalizationManager.text("play_now") : LocalizationManager.text("skip")) {
+                    // Verbeterde uitleg van Superset
+                    uitlegBox(tekst: "A SUPER-set is an exciting challenge that appears after finding a normal SET!", kleur: .purple)
+                    
+                    // Visuele uitleg van Superset met kaarten
+                    VStack(spacing: 20) {
+                        // Stap 1: Originele SET
+                        stapBox(
+                            titel: "Step 1: Find a SET",
+                            kleur: .blue,
+                            inhoud: {
+                                HStack(spacing: 12) {
+                                    ForEach(voorbeeldSet(), id: \.id) { kaart in
+                                        kaart
+                                            .frame(width: 70, height: 110)
+                                    }
+                                }
+                            }
+                        )
+                        
+                        // Stap 2: Kies één kaart
+                        stapBox(
+                            titel: "Step 2: Select ONE card from your SET",
+                            kleur: .purple,
+                            inhoud: {
+                                HStack(spacing: 12) {
+                                    ForEach(0..<3) { index in
+                                        let kaart = voorbeeldSet()[index]
+                                        ZStack {
+                                            kaart
+                                                .frame(width: 70, height: 110)
+                                            
+                                            if index == 0 {
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .stroke(Color.purple, lineWidth: 3)
+                                                    .frame(width: 70, height: 110)
+                                            }
+                                        }
+                                        .scaleEffect(index == 0 ? 1.05 : 1.0)
+                                    }
+                                }
+                            }
+                        )
+                        
+                        // Stap 3: Vind twee nieuwe kaarten
+                        stapBox(
+                            titel: "Step 3: Find TWO NEW cards that make a SET with your selected card",
+                            kleur: .green,
+                            inhoud: {
+                                HStack(spacing: 12) {
+                                    // Geselecteerde kaart uit originele set
+                                    ZStack {
+                                        voorbeeldSet()[0]
+                                            .frame(width: 70, height: 110)
+                                        
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.purple, lineWidth: 3)
+                                            .frame(width: 70, height: 110)
+                                    }
+                                    
+                                    // Twee nieuwe kaarten die een set vormen
+                                    VoorbeeldKaart(aantal: 1, kleur: .groen, vorm: .ruit, vulling: .leeg)
+                                        .frame(width: 70, height: 110)
+                                    
+                                    VoorbeeldKaart(aantal: 1, kleur: .paars, vorm: .ruit, vulling: .gestippeld)
+                                        .frame(width: 70, height: 110)
+                                }
+                            }
+                        )
+                        
+                        // Resultaat
+                        stapBox(
+                            titel: "Rewards",
+                            kleur: .yellow,
+                            inhoud: {
+                                VStack(spacing: 10) {
+                                    Text("Success = 10 points! ⭐️")
+                                        .font(.headline)
+                                        .foregroundColor(.yellow)
+                                    
+                                    Text("Fail = 0 points 😢")
+                                        .font(.subheadline)
+                                        .foregroundColor(.white.opacity(0.8))
+                                }
+                            }
+                        )
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.white.opacity(0.05))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    
+                    // Sluit knop
+                    Button("Got it!") {
                         withAnimation {
-                            toonSpeluitleg = false
-                            voorbeeldSetNummer = 1
+                            toonSuperSetUitleg = false
                         }
                     }
-                    .buttonStyle(GlowingButtonStyle(color: .green))
+                    .buttonStyle(GlowingButtonStyle(color: .purple))
+                    .padding(.vertical, 20)
                 }
-                .padding(30)
+                .padding(25)
             }
+            .edgesIgnoringSafeArea(.bottom)
         }
+    }
+    
+    // Helper functie voor uitleg boxen
+    private func uitlegBox(tekst: String, kleur: Color) -> some View {
+        Text(tekst)
+            .font(.system(size: 17))
+            .foregroundColor(.white)
+            .multilineTextAlignment(.center)
+            .padding()
+            .background(kleur.opacity(0.1))
+            .cornerRadius(15)
+            .overlay(
+                RoundedRectangle(cornerRadius: 15)
+                    .stroke(kleur.opacity(0.3), lineWidth: 1)
+            )
+    }
+    
+    // Helper functie voor stap boxen
+    private func stapBox<Content: View>(titel: String, kleur: Color, inhoud: @escaping () -> Content) -> some View {
+        VStack(alignment: .center, spacing: 8) {
+            if !titel.isEmpty {
+                Text(titel)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            inhoud()
+        }
+        .padding()
+        .background(kleur.opacity(0.1))
+        .cornerRadius(15)
+        .overlay(
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(kleur.opacity(0.3), lineWidth: 1)
+        )
     }
     
     private func voorbeeldSet() -> [VoorbeeldKaart] {
@@ -1327,10 +1579,18 @@ struct PositieKeuzeView: View {
     @ObservedObject var viewModel: SetGameViewModel
     @State private var geselecteerdeAvatars: [SetGameViewModel.SpelerPositie: SetGameViewModel.SpelerAvatar] = [:]
     @State private var beschikbareAvatars = SetGameViewModel.SpelerAvatar.allCases
+    @State private var draaiendePosities: Set<SetGameViewModel.SpelerPositie> = []
+    @State private var draaiHoek: Double = 0
     
     var body: some View {
         ZStack {
-            Color.black.opacity(0.9).ignoresSafeArea()
+            // Achtergrond
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black.opacity(0.9), Color(red: 0.1, green: 0.1, blue: 0.3)]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
             VStack {
                 Text("Choose your avatars!")
@@ -1339,46 +1599,59 @@ struct PositieKeuzeView: View {
                     .shadow(color: .blue, radius: 10)
                     .padding(.top, 20)
                 
-                Text("Drag an animal to your corner!")
+                Text("Tap a corner to get a random avatar!")
                     .font(.title2)
                     .foregroundColor(.white)
                     .padding()
                 
-                // Speelveld met avatars en dropzones
+                // Speelveld met avatars en knoppen in de hoeken
                 GeometryReader { geometry in
                     ZStack {
-                        // Dropzones in de hoeken
+                        // Avatars in het midden (draaiend wanneer een hoek wordt geselecteerd)
+                        VStack {
+                            Text("Available Avatars")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.bottom, 10)
+                            
+                            ZStack {
+                                ForEach(Array(beschikbareAvatars.enumerated()), id: \.element) { index, avatar in
+                                    let angle = 2 * .pi * Double(index) / Double(beschikbareAvatars.count)
+                                    let radius: CGFloat = 120
+                                    
+                                    AvatarView(avatar: avatar)
+                                        .offset(
+                                            x: cos(angle + (draaiendePosities.isEmpty ? 0 : draaiHoek)) * radius,
+                                            y: sin(angle + (draaiendePosities.isEmpty ? 0 : draaiHoek)) * radius
+                                        )
+                                        .scaleEffect(1.0)
+                                }
+                            }
+                            .frame(height: 300)
+                        }
+                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                        
+                        // Knoppen in de hoeken
                         ForEach(viewModel.spelModus.posities, id: \.self) { positie in
-                            let position = dropZonePosition(for: positie, in: geometry)
-                            DropZone(
+                            let position = hoekPositie(for: positie, in: geometry)
+                            HoekKnop(
                                 positie: positie,
-                                geselecteerdeAvatars: $geselecteerdeAvatars,
-                                beschikbareAvatars: $beschikbareAvatars
+                                geselecteerdeAvatar: geselecteerdeAvatars[positie],
+                                isDraaiend: draaiendePosities.contains(positie),
+                                onTap: {
+                                    selecteerRandomAvatar(voor: positie)
+                                },
+                                onReset: {
+                                    resetAvatar(voor: positie)
+                                }
                             )
                             .position(x: position.x, y: position.y)
-                        }
-                        
-                        // Cirkel van avatars in het midden
-                        ForEach(Array(beschikbareAvatars.enumerated()), id: \.element) { index, avatar in
-                            let angle = 2 * .pi * Double(index) / Double(beschikbareAvatars.count)
-                            let radius: CGFloat = 150  // Was 200, nu 150
-                            
-                            AvatarView(avatar: avatar)
-                                .draggable(avatar.rawValue) {
-                                    AvatarView(avatar: avatar)
-                                        .frame(width: 100, height: 100)  // Was 200x200, nu 100x100
-                                }
-                                .offset(
-                                    x: cos(angle) * radius,
-                                    y: sin(angle) * radius
-                                )
-                                .scaleEffect(1.2)  // Was 1.5, nu 1.2
                         }
                     }
                 }
                 
                 // Start Game knop
-                if geselecteerdeAvatars.count >= 2 {  // Simpele check voor 2 spelers
+                if geselecteerdeAvatars.count >= 2 {  // Minimaal 2 spelers nodig
                     Button(action: {
                         viewModel.verwerkSpelerPosities(geselecteerdeAvatars)
                     }) {
@@ -1386,9 +1659,16 @@ struct PositieKeuzeView: View {
                             .font(.title.bold())
                             .padding()
                             .frame(width: 300)
-                            .background(Color.green)
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.green, Color.green.opacity(0.7)]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
                             .foregroundColor(.white)
                             .cornerRadius(15)
+                            .shadow(color: .green.opacity(0.5), radius: 5, x: 0, y: 2)
                     }
                     .padding(.bottom, 40)
                 }
@@ -1396,13 +1676,125 @@ struct PositieKeuzeView: View {
         }
     }
     
-    private func dropZonePosition(for positie: SetGameViewModel.SpelerPositie, in geometry: GeometryProxy) -> CGPoint {
-        let padding: CGFloat = 50
+    private func hoekPositie(for positie: SetGameViewModel.SpelerPositie, in geometry: GeometryProxy) -> CGPoint {
+        let padding: CGFloat = 80
         switch positie {
         case .linksBoven: return CGPoint(x: padding, y: padding)
         case .rechtsBoven: return CGPoint(x: geometry.size.width - padding, y: padding)
         case .linksOnder: return CGPoint(x: padding, y: geometry.size.height - padding)
         case .rechtsOnder: return CGPoint(x: geometry.size.width - padding, y: geometry.size.height - padding)
+        }
+    }
+    
+    private func selecteerRandomAvatar(voor positie: SetGameViewModel.SpelerPositie) {
+        // Voeg positie toe aan draaiende posities
+        draaiendePosities.insert(positie)
+        
+        // Start de draai-animatie
+        withAnimation(.linear(duration: 1.5)) {
+            draaiHoek = 2 * .pi
+        }
+        
+        // Wacht even en selecteer dan een random avatar
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if !beschikbareAvatars.isEmpty {
+                // Verwijder oude avatar als die er was
+                if let oudeAvatar = geselecteerdeAvatars[positie] {
+                    beschikbareAvatars.append(oudeAvatar)
+                }
+                
+                // Kies random avatar
+                let randomIndex = Int.random(in: 0..<beschikbareAvatars.count)
+                let gekozenAvatar = beschikbareAvatars[randomIndex]
+                
+                // Update selecties
+                geselecteerdeAvatars[positie] = gekozenAvatar
+                beschikbareAvatars.remove(at: randomIndex)
+                
+                // Reset draai-animatie
+                draaiHoek = 0
+                draaiendePosities.remove(positie)
+            }
+        }
+    }
+    
+    private func resetAvatar(voor positie: SetGameViewModel.SpelerPositie) {
+        if let avatar = geselecteerdeAvatars[positie] {
+            beschikbareAvatars.append(avatar)
+            geselecteerdeAvatars.removeValue(forKey: positie)
+        }
+    }
+}
+
+struct HoekKnop: View {
+    let positie: SetGameViewModel.SpelerPositie
+    let geselecteerdeAvatar: SetGameViewModel.SpelerAvatar?
+    let isDraaiend: Bool
+    let onTap: () -> Void
+    let onReset: () -> Void
+    
+    var body: some View {
+        ZStack {
+            // Achtergrond
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.blue.opacity(0.3),
+                            Color.purple.opacity(0.3)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 150, height: 150)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.3), lineWidth: 2)
+                )
+                .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
+            
+            if let avatar = geselecteerdeAvatar {
+                // Toon geselecteerde avatar
+                VStack {
+                    AvatarView(avatar: avatar)
+                        .scaleEffect(0.9)
+                    
+                    Button(action: onReset) {
+                        Text("Reset")
+                            .font(.caption)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.red.opacity(0.7))
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
+                    .padding(.top, 5)
+                }
+            } else if isDraaiend {
+                // Toon draaiende animatie
+                ProgressView()
+                    .scaleEffect(2)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            } else {
+                // Toon "Tap to select" knop
+                VStack {
+                    Image(systemName: "dice.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white)
+                        .rotationEffect(.degrees(isDraaiend ? 360 : 0))
+                        .animation(isDraaiend ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isDraaiend)
+                    
+                    Text("TAP TO SELECT")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        .onTapGesture {
+            if geselecteerdeAvatar == nil && !isDraaiend {
+                onTap()
+            }
         }
     }
 }
@@ -1413,71 +1805,26 @@ struct AvatarView: View {
     var body: some View {
         VStack {
             Text(avatar.rawValue)
-                .font(.system(size: 50))  // Was 50, nu 50
+                .font(.system(size: 50))
             Text(avatar.vertaaldeNaam)
-                .font(.title3)  // Was caption, nu title3
+                .font(.caption)
                 .foregroundColor(.white)
         }
-        .padding(10)  // Was 15, nu 10
+        .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 15)
-                .fill(Color.blue.opacity(0.2))
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.blue.opacity(0.2), Color.purple.opacity(0.2)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
-                        .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+                        .stroke(Color.white.opacity(0.3), lineWidth: 2)
                 )
         )
-    }
-}
-
-struct DropZone: View {
-    let positie: SetGameViewModel.SpelerPositie
-    @Binding var geselecteerdeAvatars: [SetGameViewModel.SpelerPositie: SetGameViewModel.SpelerAvatar]
-    @Binding var beschikbareAvatars: [SetGameViewModel.SpelerAvatar]
-    
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.blue.opacity(0.2))
-                .frame(width: 150, height: 150)
-            
-            if let avatar = geselecteerdeAvatars[positie] {
-                // Toon geplaatste avatar
-                AvatarView(avatar: avatar)
-                    .onTapGesture {
-                        // Verwijder avatar en zet terug in beschikbare avatars
-                        beschikbareAvatars.append(avatar)
-                        geselecteerdeAvatars.removeValue(forKey: positie)
-                    }
-            } else {
-                VStack {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(.blue)
-                    Text("DROP HERE")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                }
-            }
-        }
-        .dropDestination(for: String.self) { items, _ in
-            guard let avatarString = items.first,
-                  let avatar = SetGameViewModel.SpelerAvatar(rawValue: avatarString),
-                  beschikbareAvatars.contains(avatar) else {
-                return false
-            }
-            
-            // Verwijder oude avatar als die er was
-            if let oudeAvatar = geselecteerdeAvatars[positie] {
-                beschikbareAvatars.append(oudeAvatar)
-            }
-            
-            // Update selecties
-            geselecteerdeAvatars[positie] = avatar
-            beschikbareAvatars.removeAll { $0 == avatar }
-            
-            return true
-        }
     }
 }
 
