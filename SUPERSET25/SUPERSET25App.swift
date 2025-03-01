@@ -182,6 +182,7 @@ class SetGameViewModel: ObservableObject {
     private var audioPlayer: AVAudioPlayer?
     var timerCancellable: AnyCancellable?  // Voeg deze property toe
     @Published var toonKiesAvatarMelding = false
+    @Published var toonGeenGeldigeSetMelding = false
     
     struct EindSpelStats {
         let scores: [Int]
@@ -874,6 +875,46 @@ class SetGameViewModel: ObservableObject {
             }
         }
     }
+
+    // Voeg deze functie toe om periodiek te controleren of er nog geldige SETs zijn
+    func controleerEindspelSituatie() {
+        // Als er geen kaarten meer in het deck zijn en er geen geldige SET meer mogelijk is, beëindig het spel
+        if model.aantalKaartenInDeck == 0 && !heeftGeldigeSet() {
+            print("DEBUG: Geen kaarten meer in deck en geen geldige SET mogelijk - beëindig spel")
+            
+            // Toon een melding dat er geen geldige SET meer is
+            toonGeenGeldigeSetMelding = true
+            
+            // Speel een geluid af
+            AudioServicesPlaySystemSound(1521) // Foutmelding geluid
+            
+            // Beëindig het spel na een korte vertraging
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                self.eindSpel()
+            }
+        }
+    }
+
+    // Voeg een knop toe aan de UI om handmatig te controleren of er nog geldige SETs zijn
+    func checkVoorGeldigeSet() {
+        if !heeftGeldigeSet() {
+            // Toon een melding dat er geen geldige SET meer is
+            toonGeenGeldigeSetMelding = true
+            
+            // Speel een geluid af
+            AudioServicesPlaySystemSound(1521) // Foutmelding geluid
+            
+            // Als er ook geen kaarten meer in het deck zijn, beëindig het spel
+            if model.aantalKaartenInDeck == 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    self.eindSpel()
+                }
+            }
+        } else {
+            // Er is nog minstens één geldige SET, toon deze als hint
+            toonEenSet()
+        }
+    }
 }
 // MARK: - 3. Model
 struct SetGameModel {
@@ -1275,18 +1316,8 @@ struct StartScherm: View {
                 
                 Spacer()
                 
-                // Test knop voor eindanimatie
-                Button(action: {
-                    viewModel.beeindigHuidigSpel()
-                }) {
-                    Text("End Game 🏁")
-                        .font(.headline)
-                        .padding()
-                        .background(Color.red.opacity(0.7))
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                .padding(.bottom, 20)
+                // Test knop voor eindanimatie verwijderd
+                
             }
             
             if toonSetUitleg {
@@ -2075,6 +2106,15 @@ struct SpelScherm: View {
                         .background(Color.blue.opacity(0.3))
                         .cornerRadius(10)
 
+                    // Nieuwe knop om te controleren op geldige sets
+                    Button("Check Sets") {
+                        viewModel.checkVoorGeldigeSet()
+                    }
+                    .padding()
+                    .background(Color.green.opacity(0.5))
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+
                     Button(LocalizationManager.text("new_game")) {
                         viewModel.spelFase = .startScherm
                     }
@@ -2083,16 +2123,7 @@ struct SpelScherm: View {
                     .foregroundColor(.white)
                     .cornerRadius(10)
                     
-                    // Debug knop voor het testen van de avatar melding
-                    #if DEBUG
-                    Button("Test Avatar") {
-                        viewModel.toonAvatarMelding()
-                    }
-                    .padding()
-                    .background(Color.purple.opacity(0.5))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    #endif
+                    // Debug knop voor het testen van de avatar melding verwijderd
                 }
                 .padding(.horizontal)
                 .padding(.top)
@@ -2142,6 +2173,12 @@ struct SpelScherm: View {
             if viewModel.toonKiesAvatarMelding {
                 kiesAvatarMeldingOverlay
                     .zIndex(100) // Zorg ervoor dat de overlay bovenop alles wordt getoond
+                    .transition(.scale.combined(with: .opacity))
+            }
+            
+            if viewModel.toonGeenGeldigeSetMelding {
+                geenGeldigeSetMeldingOverlay
+                    .zIndex(100)
                     .transition(.scale.combined(with: .opacity))
             }
             
@@ -2422,6 +2459,68 @@ struct SpelScherm: View {
                 }
             }
         }
+    }
+    
+    // Voeg ook de overlay toe voor de "Geen geldige set" melding
+    private var geenGeldigeSetMeldingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation {
+                        viewModel.toonGeenGeldigeSetMelding = false
+                    }
+                }
+                .onAppear {
+                    // Speel een geluid af
+                    AudioServicesPlaySystemSound(1054) // Alert sound
+                    
+                    // Stel een timer in om de melding na 3 seconden te verbergen
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        withAnimation {
+                            viewModel.toonGeenGeldigeSetMelding = false
+                        }
+                    }
+                }
+            
+            VStack(spacing: 20) {
+                Text("🔍 NO VALID SETS FOUND! 🔍")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundColor(.yellow)
+                    .multilineTextAlignment(.center)
+                    .shadow(color: .orange, radius: 2)
+                    .padding(.horizontal)
+                    .modifier(PulseEffect())
+                
+                if viewModel.aantalKaartenInDeck == 0 {
+                    Text("No cards left in the deck.\nGame will end.")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.red.opacity(0.6))
+                        )
+                } else {
+                    Text("Try switching some cards\nor look more carefully!")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                }
+            }
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.black.opacity(0.9))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.orange, lineWidth: 3)
+                    )
+            )
+        }
+        .transition(.scale.combined(with: .opacity))
     }
 }
 
