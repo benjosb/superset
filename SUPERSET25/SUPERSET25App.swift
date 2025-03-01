@@ -487,8 +487,8 @@ class SetGameViewModel: ObservableObject {
     // Nieuwe functie voor als de speler geen SuperSet ziet
     func geenSuperSetGevonden() {
         if case .superSetSelectie(let geldigeSet, let spelerMetSet) = spelStatus {
-            // Geef de normale punten voor de gevonden SET
-            model.updateScore(voor: spelerMetSet, met: 3)
+            // Geen punten voor de speler als ze geen SuperSet zien
+            model.updateScore(voor: spelerMetSet, met: 0)
             model.verwijderSet(geldigeSet)
             
             // Toon feedback en beëindig de SuperSet poging
@@ -1610,6 +1610,19 @@ struct PositieKeuzeView: View {
             )
             .ignoresSafeArea()
             
+            // Sterrenhemel effect
+            ForEach(0..<30) { _ in
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: CGFloat.random(in: 1...3))
+                    .position(
+                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
+                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
+                    )
+                    .opacity(Double.random(in: 0.3...0.8))
+                    .blur(radius: 0.5)
+            }
+            
             VStack {
                 Text("Choose your avatars!")
                     .font(.system(size: 40, weight: .bold))
@@ -1633,6 +1646,22 @@ struct PositieKeuzeView: View {
                                 .padding(.bottom, 10)
                             
                             ZStack {
+                                // Glow effect in het midden
+                                Circle()
+                                    .fill(
+                                        RadialGradient(
+                                            gradient: Gradient(colors: [
+                                                Color.blue.opacity(0.2),
+                                                Color.clear
+                                            ]),
+                                            center: .center,
+                                            startRadius: 10,
+                                            endRadius: 150
+                                        )
+                                    )
+                                    .scaleEffect(draaiendePosities.isEmpty ? 1.0 : 1.5)
+                                    .animation(.easeInOut(duration: 1.0), value: !draaiendePosities.isEmpty)
+                                
                                 ForEach(Array(beschikbareAvatars.enumerated()), id: \.element) { index, avatar in
                                     let angle = 2 * .pi * Double(index) / Double(beschikbareAvatars.count)
                                     let radius: CGFloat = 120
@@ -1642,7 +1671,8 @@ struct PositieKeuzeView: View {
                                             x: cos(angle + (draaiendePosities.isEmpty ? 0 : draaiHoek)) * radius,
                                             y: sin(angle + (draaiendePosities.isEmpty ? 0 : draaiHoek)) * radius
                                         )
-                                        .scaleEffect(1.0)
+                                        .scaleEffect(draaiendePosities.isEmpty ? 1.0 : 1.1)
+                                        .animation(.spring(response: 0.5, dampingFraction: 0.6), value: draaiendePosities.isEmpty)
                                 }
                             }
                             .frame(height: 300)
@@ -1708,9 +1738,9 @@ struct PositieKeuzeView: View {
         // Voeg positie toe aan draaiende posities
         draaiendePosities.insert(positie)
         
-        // Start de draai-animatie
-        withAnimation(.linear(duration: 1.5)) {
-            draaiHoek = 2 * .pi
+        // Start de draai-animatie met een snellere en meer dynamische beweging
+        withAnimation(.easeInOut(duration: 1.5)) {
+            draaiHoek = 4 * .pi  // Twee volledige rotaties voor meer dynamiek
         }
         
         // Wacht even en selecteer dan een random avatar
@@ -1730,7 +1760,9 @@ struct PositieKeuzeView: View {
                 beschikbareAvatars.remove(at: randomIndex)
                 
                 // Reset draai-animatie
-                draaiHoek = 0
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                    draaiHoek = 0
+                }
                 draaiendePosities.remove(positie)
             }
         }
@@ -1750,6 +1782,9 @@ struct HoekKnop: View {
     let isDraaiend: Bool
     let onTap: () -> Void
     let onReset: () -> Void
+    @State private var rotatie = 0.0
+    @State private var schaal = 1.0
+    @State private var kleurWissel = false
     
     var body: some View {
         ZStack {
@@ -1790,18 +1825,49 @@ struct HoekKnop: View {
                     .padding(.top, 5)
                 }
             } else if isDraaiend {
-                // Toon draaiende animatie
-                ProgressView()
-                    .scaleEffect(2)
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                // Verbeterde draaiende animatie
+                ZStack {
+                    // Draaiende sterren
+                    ForEach(0..<5) { i in
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(kleurWissel ? .yellow : .orange)
+                            .offset(x: 40 * cos(Double(i) * 2 * .pi / 5 + rotatie),
+                                    y: 40 * sin(Double(i) * 2 * .pi / 5 + rotatie))
+                    }
+                    
+                    // Centrale dobbelsteen
+                    Image(systemName: "dice.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white)
+                        .scaleEffect(schaal)
+                        .rotationEffect(.degrees(rotatie * 180 / .pi))
+                        .shadow(color: .white.opacity(0.8), radius: 10)
+                    
+                    // Tekst
+                    Text("SPINNING...")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .offset(y: 60)
+                }
+                .onAppear {
+                    // Start animaties
+                    withAnimation(Animation.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                        rotatie = 2 * .pi
+                    }
+                    
+                    withAnimation(Animation.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                        schaal = 1.3
+                        kleurWissel.toggle()
+                    }
+                }
             } else {
                 // Toon "Tap to select" knop
                 VStack {
                     Image(systemName: "dice.fill")
                         .font(.system(size: 40))
                         .foregroundColor(.white)
-                        .rotationEffect(.degrees(isDraaiend ? 360 : 0))
-                        .animation(isDraaiend ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isDraaiend)
+                        .shadow(color: .blue.opacity(0.8), radius: 5)
                     
                     Text("TAP TO SELECT")
                         .font(.headline)
@@ -1824,24 +1890,39 @@ struct AvatarView: View {
         VStack {
             Text(avatar.rawValue)
                 .font(.system(size: 50))
+                .shadow(color: .white.opacity(0.8), radius: 5)
             Text(avatar.vertaaldeNaam)
                 .font(.caption)
                 .foregroundColor(.white)
         }
         .padding(10)
         .background(
-            RoundedRectangle(cornerRadius: 15)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color.blue.opacity(0.2), Color.purple.opacity(0.2)]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            ZStack {
+                // Glow effect
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 0.2, green: 0.4, blue: 0.8).opacity(0.7),
+                                Color(red: 0.1, green: 0.2, blue: 0.5).opacity(0.3)
+                            ]),
+                            center: .center,
+                            startRadius: 5,
+                            endRadius: 80
+                        )
                     )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 15)
-                        .stroke(Color.white.opacity(0.3), lineWidth: 2)
-                )
+                
+                // Border
+                RoundedRectangle(cornerRadius: 15)
+                    .stroke(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.white.opacity(0.8), .blue.opacity(0.5)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 2
+                    )
+            }
         )
     }
 }
@@ -2130,12 +2211,12 @@ struct SpelScherm: View {
                     Text("🌟🌟 GREAT - WELL DONE! +10 points! 🌟🌟🌟")
                         .font(.title)
                         .foregroundColor(.white)
-                } else if case .superSetSelectie = viewModel.spelStatus {
+                } else if viewModel.inSuperSetMode {
                     // Bericht voor als de speler geen SuperSet ziet
-                    Text("👍 NO PROBLEM!")
+                    Text("😢 SORRY!")
                         .font(.system(size: 60))
-                        .foregroundColor(.yellow)
-                    Text("You keep your 3 points for the SET!")
+                        .foregroundColor(.red)
+                    Text("No points for you. \nThe game continues.")
                         .font(.title)
                         .foregroundColor(.white)
                 } else {
