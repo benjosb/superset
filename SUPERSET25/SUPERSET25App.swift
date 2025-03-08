@@ -1695,6 +1695,7 @@ struct PositieKeuzeView: View {
     @State private var beschikbareAvatars = SetGameViewModel.SpelerAvatar.allCases
     @State private var draaiendePosities: Set<SetGameViewModel.SpelerPositie> = []
     @State private var draaiHoek: Double = 0
+    @State private var toonIpadInstructie = true // Nieuwe state voor de overlay
     
     var body: some View {
         ZStack {
@@ -1725,6 +1726,25 @@ struct PositieKeuzeView: View {
                     .foregroundColor(.white)
                     .shadow(color: .blue, radius: 10)
                     .padding(.top, 20)
+                
+                // Nieuwe instructie voor het plat leggen van de iPad
+                HStack(spacing: 10) {
+                    Image(systemName: "ipad.landscape")
+                        .font(.system(size: 30))
+                        .foregroundColor(.yellow)
+                    Text("Place iPad FLAT on table!")
+                        .font(.headline)
+                        .foregroundColor(.yellow)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 15)
+                .background(Color.blue.opacity(0.3))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.yellow, lineWidth: 1.5)
+                )
+                .padding(.vertical, 5)
                 
                 Text("Tap a corner to get a random avatar!")
                     .font(.title2)
@@ -1816,6 +1836,74 @@ struct PositieKeuzeView: View {
                     }
                     .padding(.bottom, 40)
                 }
+            }
+            
+            // Grote overlay voor de iPad-instructie (als toonIpadInstructie true is)
+            if toonIpadInstructie {
+                Color.black.opacity(0.8)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation {
+                            toonIpadInstructie = false
+                        }
+                    }
+                
+                VStack(spacing: 30) {
+                    Text("IMPORTANT!")
+                        .font(.system(size: 42, weight: .bold))
+                        .foregroundColor(.red)
+                        .padding(.top)
+                        .shadow(color: .yellow, radius: 2)
+                    
+                    // Animerende iPad illustratie
+                    VStack {
+                        Image(systemName: "ipad.landscape")
+                            .font(.system(size: 120))
+                            .foregroundColor(.yellow)
+                            .shadow(color: .yellow, radius: 10)
+                            .rotation3DEffect(
+                                .degrees(15),
+                                axis: (x: 1.0, y: 0.0, z: 0.0)
+                            )
+                    }
+                    .padding(.vertical, 20)
+                    
+                    Text("For multiplayer mode, the iPad MUST be placed FLAT on the table with players sitting around it.")
+                        .font(.title2.bold())
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Text("Each player sits at one side of the iPad and selects their avatar from their corner.")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Button(action: {
+                        withAnimation {
+                            toonIpadInstructie = false
+                        }
+                    }) {
+                        Text("Got it!")
+                            .font(.title2.bold())
+                            .padding()
+                            .frame(width: 200)
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .cornerRadius(15)
+                            .shadow(color: .green.opacity(0.7), radius: 5)
+                    }
+                    .padding(.bottom, 20)
+                }
+                .padding(30)
+                .background(
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(Color.blue.opacity(0.7))
+                        .shadow(color: .blue.opacity(0.5), radius: 20)
+                )
+                .padding(40)
+                .transition(.scale.combined(with: .opacity))
             }
         }
     }
