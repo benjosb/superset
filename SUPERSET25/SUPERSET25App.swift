@@ -9,12 +9,58 @@ import SwiftUI
 import AVFoundation
 import AudioToolbox
 import Combine
+import UIKit
+
+// Een betere implementatie voor oriëntatie-vergrendeling
+class OrientationLock: ObservableObject {
+    static let shared = OrientationLock()
+    
+    init() {
+        NotificationCenter.default.addObserver(self, 
+            selector: #selector(orientationDidChange), 
+            name: UIDevice.orientationDidChangeNotification, 
+            object: nil)
+    }
+    
+    @objc func orientationDidChange() {
+        // Forceer altijd terug naar portrait
+        UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+    }
+    
+    func lockOrientation() {
+        UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+}
+
+// OrientationStateModifier voor SwiftUI compatibiliteit
+struct OrientationStateModifier: ViewModifier {
+    @StateObject var orientationLock = OrientationLock.shared
+    
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                // Vergrendel naar portrait bij verschijnen
+                orientationLock.lockOrientation()
+            }
+    }
+}
+
+extension View {
+    func lockOrientation() -> some View {
+        self.modifier(OrientationStateModifier())
+    }
+}
 
 @main
 struct SUPERSET25App: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .lockOrientation() // Vergrendel oriëntatie
         }
     }
 }
@@ -291,7 +337,14 @@ class SetGameViewModel: ObservableObject {
     var aantalKaartenInDeck: Int { model.aantalKaartenInDeck }
     
     private func activeerOefenModus() {
-        actieveSpeler = 0
+        // Alleen in de oefenmodus moet automatisch een speler worden geactiveerd
+        // In multiplayer modus moeten spelers zelf hun avatar selecteren
+        if spelModus == .oefenen {
+            actieveSpeler = 0
+        } else {
+            actieveSpeler = nil
+        }
+        
         magKaartenSelecteren = true
         selectieTijdResterend = 10.0
         
@@ -335,7 +388,18 @@ class SetGameViewModel: ObservableObject {
 
     func selecteerSpeler(_ spelerIndex: Int) {
         guard !geblokkeerdeSpelers.contains(spelerIndex) else { return }
-        guard actieveSpeler == nil || actieveSpeler == spelerIndex else { return }
+        
+        // Als dezelfde speler opnieuw wordt geselecteerd, deselecteer deze dan
+        if actieveSpeler == spelerIndex {
+            actieveSpeler = nil
+            magKaartenSelecteren = false
+            geselecteerdeKaarten.removeAll()
+            aantalGeselecteerdeKaarten = 0
+            return
+        }
+        
+        // Anders, als er geen actieve speler is, selecteer deze speler
+        guard actieveSpeler == nil else { return }
            
         actieveSpeler = spelerIndex
         magKaartenSelecteren = true
