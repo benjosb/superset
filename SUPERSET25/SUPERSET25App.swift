@@ -2474,26 +2474,34 @@ struct SpelScherm: View {
     }
     
     private func spelerKnopVoorPositie(_ positie: SetGameViewModel.SpelerPositie) -> some View {
-        let spelerIndex = viewModel.spelerPosities.firstIndex(of: positie) ?? -1
-        if let avatar = viewModel.spelerAvatars[positie] {
-            return AnyView(
-                SpelerKnop(
-                    avatar: avatar,
-                    score: spelerIndex >= 0 ? viewModel.scores[spelerIndex] : 0,
-                    isActief: viewModel.actieveSpeler == spelerIndex,
-                    magSelecteren: viewModel.magKaartenSelecteren && viewModel.actieveSpeler == spelerIndex,
-                    isGeblokkeerd: spelerIndex >= 0 && viewModel.isSpelerGeblokkeerd(spelerIndex),
-                    action: {
-                        if spelerIndex >= 0 {
-                            viewModel.selecteerSpeler(spelerIndex)
-                        }
-                    },
-                    isBovenaan: positie == .linksBoven || positie == .rechtsBoven
-                )
-            )
-        } else {
+        // Als we in oefenmodus zijn, toon geen spelers
+        if viewModel.spelModus == .oefenen {
             return AnyView(EmptyView())
         }
+        
+        // Veilige controle voor spelerIndex
+        let spelerIndex = viewModel.spelerPosities.firstIndex(of: positie) ?? -1
+        
+        // Extra veiligheidscheck of de avatar en index geldig zijn
+        guard let avatar = viewModel.spelerAvatars[positie], 
+              spelerIndex >= 0, 
+              spelerIndex < viewModel.scores.count else {
+            return AnyView(EmptyView())
+        }
+        
+        return AnyView(
+            SpelerKnop(
+                avatar: avatar,
+                score: viewModel.scores[spelerIndex],
+                isActief: viewModel.actieveSpeler == spelerIndex,
+                magSelecteren: viewModel.magKaartenSelecteren && viewModel.actieveSpeler == spelerIndex,
+                isGeblokkeerd: viewModel.isSpelerGeblokkeerd(spelerIndex),
+                action: {
+                    viewModel.selecteerSpeler(spelerIndex)
+                },
+                isBovenaan: positie == .linksBoven || positie == .rechtsBoven
+            )
+        )
     }
     
     private var geldigeSetOverlay: some View {
